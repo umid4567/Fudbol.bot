@@ -8,14 +8,13 @@ from flask import Flask
 import os
 
 # --- 1. RENDER UCHUN VEB-SAYT (HIYLA) QISMI ---
-app = Flask('')
+app = Flask(__name__)
 
 @app.route('/')
 def home():
     return "Bot holati: Faol ✅. 24/7 rejim yoqilgan."
 
 def run():
-    # Render portni avtomatik beradi, bo'lmasa 8080 ishlatiladi
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
@@ -24,11 +23,10 @@ def keep_alive():
     t.daemon = True
     t.start()
 
-# --- 2. SOZLAMALAR (ENVIRONMENT VARIABLES) ---
-# Render panelidagi 'Environment' bo'limidan ushbu nomlar bilan tokenlarni qo'shing
+# --- 2. SOZLAMALAR ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 FOOTBALL_API_KEY = os.environ.get("FOOTBALL_API_KEY")
-ADMIN_ID = 7748146680 # O'zingizning ID raqamingizni yozing
+ADMIN_ID = 7748146680 
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
@@ -116,6 +114,7 @@ def show_stat(message):
 
 @bot.message_handler(content_types=['text'])
 def bot_message(message):
+    # 1. Yangiliklar
     if message.text == "📰 Янгиликлар":
         m = types.InlineKeyboardMarkup(row_width=1)
         m.add(
@@ -125,11 +124,13 @@ def bot_message(message):
         )
         bot.send_message(message.chat.id, "📰 **Манбани танланг:**", reply_markup=m, parse_mode="Markdown")
     
+    # 2. LIVE
     elif message.text == "🔴 LIVE":
         m = types.InlineKeyboardMarkup()
         m.add(types.InlineKeyboardButton(text="🌐 Жонли натижалар", web_app=types.WebAppInfo(url="https://www.livescore.com/en/")))
         bot.send_message(message.chat.id, "🔴 LIVE натижалар:", reply_markup=m)
 
+    # 3. Ko'rish
     elif message.text == "📺 Ўйинни кўриш":
         markup = types.InlineKeyboardMarkup(row_width=1)
         search_query = "m.football.tv футбол live сегодня"
@@ -137,11 +138,28 @@ def bot_message(message):
         markup.add(types.InlineKeyboardButton(text="⚽️ Эфирни топиш", url=google_url))
         bot.send_message(message.chat.id, "📺 **Жонли эфир қидируви:**", reply_markup=markup, parse_mode="Markdown")
 
+    # 4. O'yinlar kuni
     elif message.text == "📅 Ўйинлар куни":
         wait = bot.send_message(message.chat.id, "⌛️...")
         bot.send_message(message.chat.id, get_matches(), parse_mode="Markdown")
         bot.delete_message(message.chat.id, wait.message_id)
 
+    # 5. Jahon Chempionati (TO'G'RILANDI)
+    elif message.text == "🏆 Жаҳон Чемпионати":
+        m = types.InlineKeyboardMarkup()
+        url_wc = "https://www.flashscore.com/football/world/world-cup/standings/"
+        m.add(types.InlineKeyboardButton(text="🏆 Жадвални кўриш", url=url_wc))
+        bot.send_message(message.chat.id, "🏆 ЖЧ-2026 саралаши ва жадвали:", reply_markup=m)
+
+    # 6. Video sharhlar (TO'G'RILANDI)
+    elif message.text == "🎬 Видео шарҳлар":
+        query = "football highlights today"
+        search_url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(query)}"
+        m = types.InlineKeyboardMarkup()
+        m.add(types.InlineKeyboardButton(text="🎬 YouTube-да кўриш", url=search_url))
+        bot.send_message(message.chat.id, "🎬 Энг янги футбол шарҳлари:", reply_markup=m)
+
+    # 7. Jadvallar
     elif message.text == "📊 Жадваллар":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         markup.add("🏴󠁧󠁢󠁥󠁮󠁧󠁿 АПЛ", "🇪🇸 Ла Лига", "🇮🇹 Серия А")
@@ -159,7 +177,7 @@ def bot_message(message):
 
 # --- 5. ISHGA TUSHIRISH ---
 if __name__ == "__main__":
-    keep_alive() # Hiylani yoqamiz
+    keep_alive() 
     print("Bot va Server ishga tushdi...")
     while True:
         try:
@@ -167,4 +185,3 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Xatolik: {e}")
             time.sleep(5)
-
