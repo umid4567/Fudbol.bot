@@ -7,39 +7,36 @@ from threading import Thread
 from flask import Flask
 import os
 
-# --- KEEP ALIVE SERVER (RENDER UCHUN) ---
-# Bu qism botni "uyg'oq" saqlash uchun kichik veb-server vazifasini bajaradi
+# --- 1. RENDER UCHUN VEB-SAYT (HIYLA) QISMI ---
 app = Flask('')
 
 @app.route('/')
 def home():
-    return "Bot is running!"
+    return "Bot holati: Faol ✅. 24/7 rejim yoqilgan."
 
 def run():
-    # Render odatda 8080 yoki 10000 portni ishlatadi
+    # Render portni avtomatik beradi, bo'lmasa 8080 ishlatiladi
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
 def keep_alive():
     t = Thread(target=run)
-    t.daemon = True # Asosiy dastur bilan birga yopilishi uchun
+    t.daemon = True
     t.start()
 
-# --- СОЗЛАМАЛАР ---
-# O'zingizning ma'lumotlaringizni shu yerga qo'ying
-BOT_TOKEN = "BU_YERGA_TELEGRAM_TOKEN_QOYING"
-FOOTBALL_API_KEY = "BU_YERGA_FOOTBALL_API_KEY_QOYING"
-ADMIN_ID = 7748146680 
+# --- 2. SOZLAMALAR (ENVIRONMENT VARIABLES) ---
+# Render panelidagi 'Environment' bo'limidan ushbu nomlar bilan tokenlarni qo'shing
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+FOOTBALL_API_KEY = os.environ.get("FOOTBALL_API_KEY")
+ADMIN_ID = 7748146680 # O'zingizning ID raqamingizni yozing
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# --- ФУНКЦИЯЛАР ---
+# --- 3. FUNKSIYALAR ---
 
 def save_user_and_notify(message):
     user_id = str(message.chat.id)
     try:
-        # Render'da fayllar vaqtinchalik bo'lishi mumkin, 
-        # lekin kichik ro'yxat uchun ishlaydi
         with open("users_list.txt", "a+") as file:
             file.seek(0)
             users = file.read().splitlines()
@@ -92,7 +89,7 @@ def get_europe_table(league_code):
     except:
         return "❌ Жадвални юклашда хатолик юз берди."
 
-# --- БОТ БУЙРУҚЛАРИ ---
+# --- 4. BOT BUYRUQLARI ---
 
 @bot.message_handler(commands=['start'])
 def welcome(message):
@@ -113,9 +110,9 @@ def show_stat(message):
                     count = len(set(file.read().splitlines()))
                 bot.send_message(message.chat.id, f"📊 Статистика: {count} та обуначи.")
             else:
-                bot.send_message(message.chat.id, "📊 База ҳали яратилмаган.")
+                bot.send_message(message.chat.id, "📊 База бўш.")
         except:
-            bot.send_message(message.chat.id, "📊 Хатолик юз берди.")
+            bot.send_message(message.chat.id, "❌ Хатолик.")
 
 @bot.message_handler(content_types=['text'])
 def bot_message(message):
@@ -126,27 +123,24 @@ def bot_message(message):
             types.InlineKeyboardButton(text="⚽️ Tribuna.uz", url="https://kun.uz/news/category/sport"),
             types.InlineKeyboardButton(text="📈 Sports.uz", url="https://sports.uz/")
         )
-        bot.send_message(message.chat.id, "📰 **Янгиликлар манбасини танланг:**", reply_markup=m, parse_mode="Markdown")
+        bot.send_message(message.chat.id, "📰 **Манбани танланг:**", reply_markup=m, parse_mode="Markdown")
     
     elif message.text == "🔴 LIVE":
         m = types.InlineKeyboardMarkup()
         m.add(types.InlineKeyboardButton(text="🌐 Жонли натижалар", web_app=types.WebAppInfo(url="https://www.livescore.com/en/")))
-        bot.send_message(message.chat.id, "🔴 Жонли натижалар:", reply_markup=m)
+        bot.send_message(message.chat.id, "🔴 LIVE натижалар:", reply_markup=m)
 
     elif message.text == "📺 Ўйинни кўриш":
         markup = types.InlineKeyboardMarkup(row_width=1)
-        search_query = "m.football.tv футбол live трансляция сегодня"
+        search_query = "m.football.tv футбол live сегодня"
         google_url = f"https://www.google.com/search?q={urllib.parse.quote(search_query)}"
-        btn_google_live = types.InlineKeyboardButton(text="⚽️ Футбол LIVE (Google орқали)", url=google_url)
-        share_text = "⚽️ Дўстим, мана бу ботда футболни жонли кўриш мумкин: https://t.me/Fudbolgamebot"
-        share_url = f"https://t.me/share/url?url={urllib.parse.quote(share_text)}"
-        markup.add(btn_google_live, types.InlineKeyboardButton(text="🚀 Дўстларга юбориш", url=share_url))
-        bot.send_message(message.chat.id, "📺 **Жонли эфирлар:**", reply_markup=markup, parse_mode="Markdown")
+        markup.add(types.InlineKeyboardButton(text="⚽️ Эфирни топиш", url=google_url))
+        bot.send_message(message.chat.id, "📺 **Жонли эфир қидируви:**", reply_markup=markup, parse_mode="Markdown")
 
     elif message.text == "📅 Ўйинлар куни":
-        wait_msg = bot.send_message(message.chat.id, "⌛️ Юкланмоқда...")
+        wait = bot.send_message(message.chat.id, "⌛️...")
         bot.send_message(message.chat.id, get_matches(), parse_mode="Markdown")
-        bot.delete_message(message.chat.id, wait_msg.message_id)
+        bot.delete_message(message.chat.id, wait.message_id)
 
     elif message.text == "📊 Жадваллар":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -156,17 +150,17 @@ def bot_message(message):
 
     elif message.text in ["🏴󠁧󠁢󠁥󠁮󠁧󠁿 АПЛ", "🇪🇸 Ла Лига", "🇮🇹 Серия А", "🇩🇪 Бундеслига", "🇪🇺 ЕЧЛ"]:
         codes = {"🏴󠁧󠁢󠁥󠁮󠁧󠁿 АПЛ": "PL", "🇪🇸 Ла Лига": "PD", "🇮🇹 Серия А": "SA", "🇩🇪 Бундеслига": "BL1", "🇪🇺 ЕЧЛ": "CL"}
-        wait_msg = bot.send_message(message.chat.id, "⌛️ Юкланмоқда...")
+        wait = bot.send_message(message.chat.id, "⌛️...")
         bot.send_message(message.chat.id, get_europe_table(codes[message.text]), parse_mode="Markdown")
-        bot.delete_message(message.chat.id, wait_msg.message_id)
+        bot.delete_message(message.chat.id, wait.message_id)
 
     elif message.text == "⬅️ Орқага":
         welcome(message)
 
-# --- ИШГА ТУШИРИШ ---
+# --- 5. ISHGA TUSHIRISH ---
 if __name__ == "__main__":
-    keep_alive() # Veb-serverni ishga tushirish
-    print("Bot ishga tushdi...")
+    keep_alive() # Hiylani yoqamiz
+    print("Bot va Server ishga tushdi...")
     while True:
         try:
             bot.polling(non_stop=True, interval=0, timeout=20)
