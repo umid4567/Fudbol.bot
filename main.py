@@ -12,7 +12,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Bot holati: Faol ✅. 24/7 rejim yoqilgan."
+    return "Bot holati: Faol ✅. Avto-gollar tizimi yoqilgan."
 
 def run():
     port = int(os.environ.get("PORT", 8080))
@@ -29,12 +29,15 @@ FOOTBALL_API_KEY = os.environ.get("FOOTBALL_API_KEY")
 ADMIN_ID = 7748146680 
 
 bot = telebot.TeleBot(BOT_TOKEN)
+last_sent_video = "" # Oxirgi yuborilgan videoni eslab qolish uchun
 
 # --- 3. FUNKSIYALAR ---
 
 def save_user_and_notify(message):
     user_id = str(message.chat.id)
     try:
+        if not os.path.exists("users_list.txt"):
+            open("users_list.txt", "w").close()
         with open("users_list.txt", "a+") as file:
             file.seek(0)
             users = file.read().splitlines()
@@ -43,6 +46,44 @@ def save_user_and_notify(message):
     except:
         pass
 
+# AVTOMATIK GOLLARNI TEKSHIRISH VA YUBORISH (YANGI QO'SHILDI)
+def auto_broadcast_goals():
+    global last_sent_video
+    while True:
+        try:
+            # ScoreBat API dan videolarni tekshirish
+            response = requests.get("https://www.scorebat.com/video-api/v3/")
+            data = response.json()
+            matches = data.get('response', [])
+
+            if matches:
+                latest = matches[0]
+                title = latest['title']
+                url = latest['matchviewUrl']
+
+                # Agar yangi video bo'lsa
+                if title != last_sent_video:
+                    last_sent_video = title
+                    
+                    if os.path.exists("users_list.txt"):
+                        with open("users_list.txt", "r") as f:
+                            users = set(f.read().splitlines())
+                        
+                        caption = f"⚽️ **ЯНГИ ГОЛ!**\n\n🎬 {title}\n\nКўриш учун пастдаги тугмани босинг 👇"
+                        m = types.InlineKeyboardMarkup()
+                        m.add(types.InlineKeyboardButton(text="🎬 Видеони кўриш", url=url))
+
+                        for user in users:
+                            try:
+                                bot.send_message(user, caption, reply_markup=m, parse_mode="Markdown")
+                                time.sleep(0.2) # Telegram bloklamasligi uchun
+                            except:
+                                continue
+            
+            time.sleep(900) # 15 daqiqada bir tekshiradi
+        except:
+            time.sleep(60)
+
 def get_matches():
     url = "https://api.football-data.org/v4/matches"
     headers = {'X-Auth-Token': FOOTBALL_API_KEY}
@@ -50,22 +91,17 @@ def get_matches():
         response = requests.get(url, headers=headers)
         data = response.json()
         matches = data.get('matches', [])
-
-        if not matches:
-            return "📅 Бугунги кун учун муҳим ўйинлар топилмади."
-
+        if not matches: return "📅 Бугунги кун учун муҳим ўйинлар топилмади."
         text = "📅 **БУГУНГИ ТОП-10 ЎЙИН**\n*(Тошкент вақти билан)*\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n"
         for m in matches[:10]:
             home = m['homeTeam']['shortName'] or m['homeTeam']['name']
             away = m['awayTeam']['shortName'] or m['awayTeam']['name']
             utc_hour = int(m['utcDate'][11:13])
-            minutes = m['utcDate'][14:16]
             uzb_hour = (utc_hour + 5) % 24
-            time_str = f"{uzb_hour:02}:{minutes}"
+            time_str = f"{uzb_hour:02}:{m['utcDate'][14:16]}"
             text += f"⏰ {time_str} | ⚽️ **{home}** — **{away}**\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n"
         return text
-    except:
-        return "❌ Маълумот олишда хатолик юз берди."
+    except: return "❌ Маълумот олишда хатолик юз берди."
 
 def get_europe_table(league_code):
     url = f"https://api.football-data.org/v4/competitions/{league_code}/standings"
@@ -84,8 +120,7 @@ def get_europe_table(league_code):
             text += f"{pos}. {emoji} {name} — {pts} очко\n"
         text += "\n🔄 *Маълумотлар реал вақтда янгиланади.*"
         return text
-    except:
-        return "❌ Жадвални юклашда хатолик юз берди."
+    except: return "❌ Жадвални юклашда хатолик юз берди."
 
 # --- 4. BOT BUYRUQLARI ---
 
@@ -109,12 +144,10 @@ def show_stat(message):
                 bot.send_message(message.chat.id, f"📊 Статистика: {count} та обуначи.")
             else:
                 bot.send_message(message.chat.id, "📊 База бўш.")
-        except:
-            bot.send_message(message.chat.id, "❌ Хатолик.")
+        except: bot.send_message(message.chat.id, "❌ Хатолик.")
 
 @bot.message_handler(content_types=['text'])
 def bot_message(message):
-    # 1. Yangiliklar
     if message.text == "📰 Янгиликлар":
         m = types.InlineKeyboardMarkup(row_width=1)
         m.add(
@@ -124,13 +157,11 @@ def bot_message(message):
         )
         bot.send_message(message.chat.id, "📰 **Манбани танланг:**", reply_markup=m, parse_mode="Markdown")
     
-    # 2. LIVE
     elif message.text == "🔴 LIVE":
         m = types.InlineKeyboardMarkup()
         m.add(types.InlineKeyboardButton(text="🌐 Жонли натижалар", web_app=types.WebAppInfo(url="https://www.livescore.com/en/")))
         bot.send_message(message.chat.id, "🔴 LIVE натижалар:", reply_markup=m)
 
-    # 3. Ko'rish
     elif message.text == "📺 Ўйинни кўриш":
         markup = types.InlineKeyboardMarkup(row_width=1)
         search_query = "m.football.tv футбол live сегодня"
@@ -138,20 +169,17 @@ def bot_message(message):
         markup.add(types.InlineKeyboardButton(text="⚽️ Эфирни топиш", url=google_url))
         bot.send_message(message.chat.id, "📺 **Жонли эфир қидируви:**", reply_markup=markup, parse_mode="Markdown")
 
-    # 4. O'yinlar kuni
     elif message.text == "📅 Ўйинлар куни":
         wait = bot.send_message(message.chat.id, "⌛️...")
         bot.send_message(message.chat.id, get_matches(), parse_mode="Markdown")
         bot.delete_message(message.chat.id, wait.message_id)
 
-    # 5. Jahon Chempionati (TO'G'RILANDI)
     elif message.text == "🏆 Жаҳон Чемпионати":
         m = types.InlineKeyboardMarkup()
         url_wc = "https://www.flashscore.com/football/world/world-cup/standings/"
         m.add(types.InlineKeyboardButton(text="🏆 Жадвални кўриш", url=url_wc))
         bot.send_message(message.chat.id, "🏆 ЖЧ-2026 саралаши ва жадвали:", reply_markup=m)
 
-    # 6. Video sharhlar (TO'G'RILANDI)
     elif message.text == "🎬 Видео шарҳлар":
         query = "football highlights today"
         search_url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(query)}"
@@ -159,7 +187,6 @@ def bot_message(message):
         m.add(types.InlineKeyboardButton(text="🎬 YouTube-да кўриш", url=search_url))
         bot.send_message(message.chat.id, "🎬 Энг янги футбол шарҳлари:", reply_markup=m)
 
-    # 7. Jadvallar
     elif message.text == "📊 Жадваллар":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         markup.add("🏴󠁧󠁢󠁥󠁮󠁧󠁿 АПЛ", "🇪🇸 Ла Лига", "🇮🇹 Серия А")
@@ -178,10 +205,9 @@ def bot_message(message):
 # --- 5. ISHGA TUSHIRISH ---
 if __name__ == "__main__":
     keep_alive() 
-    print("Bot va Server ishga tushdi...")
-    while True:
-        try:
-            bot.polling(non_stop=True, interval=0, timeout=20)
-        except Exception as e:
-            print(f"Xatolik: {e}")
-            time.sleep(5)
+    # Avtomatik broadcastni alohida oqimda ishga tushiramiz
+    Thread(target=auto_broadcast_goals).start()
+    
+    print("Bot va Avto-gollar tizimi ishga tushdi...")
+    bot.infinity_polling(timeout=20, long_polling_timeout=10)
+
