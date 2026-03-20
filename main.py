@@ -15,6 +15,7 @@ def home():
     return "Bot holati: Faol ✅. Avto-gollar tizimi yoqilgan."
 
 def run():
+    # Render uchun portni sozlash
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
@@ -104,33 +105,19 @@ def get_europe_table(league_code):
     try:
         response = requests.get(url, headers=headers)
         data = response.json()
-        
-        # Ma'lumot borligini tekshirish
         if 'standings' not in data or not data['standings']:
             return "⚠️ Ҳозирча жадвал маълумотлари йўқ."
-            
-        # Odatda birinchi turdagi jadvalni olamiz (TOTAL)
         standings = data['standings'][0]['table']
         league_name = data['competition']['name']
-        
         text = f"🏆 **{league_name}**\n\n"
-        text += "№  Жамоа            Очко\n"
-        text += "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n"
-        
-        for team in standings[:15]: # Eng kuchli 15 talik
+        for team in standings[:15]:
             pos = team['position']
-            # Jamoa nomini qisqaroq olish (agar qisqa nomi bo'lsa)
             name = team['team']['shortName'] or team['team']['name']
             pts = team['points']
-            
-            # Chiroyli ko'rinish uchun bo'shliqlar bilan formatlash
-            text += f"{pos:<2} {name:<15} {pts} очко\n"
-            
-        text += "\n🔄 *Маълумотлар автоматик янгиланади.*"
+            text += f"{pos}. {name} — {pts} очко\n"
         return text
     except Exception as e:
-        print(f"Jadval xatosi: {e}")
-        return "❌ Жадвални юклашда хатолик юз берди. API калитни текшириб кўринг."
+        return "❌ Жадвални юклашда хатолик юз берди."
 
 # --- 4. BOT BUYRUQLARI ---
 
@@ -138,7 +125,7 @@ def get_europe_table(league_code):
 def welcome(message):
     save_user_and_notify(message)
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("📊 Жадвалlar", "📅 Ўйинлар куни")
+    markup.add("📊 Жадваллар", "📅 Ўйинлар куни")
     markup.add("📺 Ўйинни кўриш", "🔴 LIVE")
     markup.add("🏆 Жаҳон Чемпионати", "🎬 Видео шарҳлар")
     markup.add("📰 Янгиликлар")
@@ -188,38 +175,25 @@ def bot_message(message):
         query = "football highlights today"
         search_url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(query)}"
         m = types.InlineKeyboardMarkup()
-        m.add(types.InlineKeyboardButton(text="🎬 YouTube-da кўриш", url=search_url))
+        m.add(types.InlineKeyboardButton(text="🎬 YouTube-да кўриш", url=search_url))
         bot.send_message(message.chat.id, "🎬 Энг янги футбол шарҳлари:", reply_markup=m)
 
-        elif message.text == "📊 Жадваллар":
+    elif message.text == "📊 Жадваллар":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        # Diqqat: So'zlarni aniq yozish kerak
         markup.add("🏴󠁧󠁢󠁥󠁮󠁧󠁿 АПЛ", "🇪🇸 Ла Лига", "🇮🇹 Серия А")
         markup.add("🇩🇪 Бундеслига", "🇪🇺 ЕЧЛ", "⬅️ Орқага")
         bot.send_message(message.chat.id, "Лигани танланг:", reply_markup=markup)
 
     elif message.text in ["🏴󠁧󠁢󠁥󠁮󠁧󠁿 АПЛ", "🇪🇸 Ла Лига", "🇮🇹 Серия А", "🇩🇪 Бундеслига", "🇪🇺 ЕЧЛ"]:
-        # Foydalanuvchiga kutishni aytamiz (yaxshi tajriba uchun)
         wait_msg = bot.send_message(message.chat.id, "⌛️ Маълумот юкланмоқда...")
-        
-        codes = {
-            "🏴󠁧󠁢󠁥󠁮󠁧󠁿 АПЛ": "PL", 
-            "🇪🇸 Ла Лига": "PD", 
-            "🇮🇹 Серия А": "SA", 
-            "🇩🇪 Бундеслига": "BL1", 
-            "🇪🇺 ЕЧЛ": "CL"
-        }
-        
+        codes = {"🏴󠁧󠁢󠁥󠁮󠁧󠁿 АПЛ": "PL", "🇪🇸 Ла Лига": "PD", "🇮🇹 Серия А": "SA", "🇩🇪 Бундеслига": "BL1", "🇪🇺 ЕЧЛ": "CL"}
         league_code = codes.get(message.text)
         table_text = get_europe_table(league_code)
-        
-        # Natijani yuboramiz va "Kuting" xabarini o'chiramiz
         bot.send_message(message.chat.id, table_text, parse_mode="Markdown")
         bot.delete_message(message.chat.id, wait_msg.message_id)
 
     elif message.text == "⬅️ Орқага":
         welcome(message)
-
 
 # --- 5. ISHGA TUSHIRISH ---
 if __name__ == "__main__":
