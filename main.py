@@ -104,16 +104,33 @@ def get_europe_table(league_code):
     try:
         response = requests.get(url, headers=headers)
         data = response.json()
+        
+        # Ma'lumot borligini tekshirish
+        if 'standings' not in data or not data['standings']:
+            return "⚠️ Ҳозирча жадвал маълумотлари йўқ."
+            
+        # Odatda birinchi turdagi jadvalni olamiz (TOTAL)
         standings = data['standings'][0]['table']
         league_name = data['competition']['name']
+        
         text = f"🏆 **{league_name}**\n\n"
-        for team in standings[:15]:
+        text += "№  Жамоа            Очко\n"
+        text += "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n"
+        
+        for team in standings[:15]: # Eng kuchli 15 talik
             pos = team['position']
+            # Jamoa nomini qisqaroq olish (agar qisqa nomi bo'lsa)
             name = team['team']['shortName'] or team['team']['name']
             pts = team['points']
-            text += f"{pos}. {name} — {pts} очко\n"
+            
+            # Chiroyli ko'rinish uchun bo'shliqlar bilan formatlash
+            text += f"{pos:<2} {name:<15} {pts} очко\n"
+            
+        text += "\n🔄 *Маълумотлар автоматик янгиланади.*"
         return text
-    except: return "❌ Жадвални юклашда хатолик юз берди."
+    except Exception as e:
+        print(f"Jadval xatosi: {e}")
+        return "❌ Жадвални юклашда хатолик юз берди. API калитни текшириб кўринг."
 
 # --- 4. BOT BUYRUQLARI ---
 
