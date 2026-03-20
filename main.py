@@ -191,18 +191,35 @@ def bot_message(message):
         m.add(types.InlineKeyboardButton(text="🎬 YouTube-da кўриш", url=search_url))
         bot.send_message(message.chat.id, "🎬 Энг янги футбол шарҳлари:", reply_markup=m)
 
-    elif message.text == "📊 Жадваллар":
+        elif message.text == "📊 Жадваллар":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        # Diqqat: So'zlarni aniq yozish kerak
         markup.add("🏴󠁧󠁢󠁥󠁮󠁧󠁿 АПЛ", "🇪🇸 Ла Лига", "🇮🇹 Серия А")
-        markup.add("🇩🇪 Бундеслиga", "🇪🇺 ЕЧЛ", "⬅️ Орқага")
+        markup.add("🇩🇪 Бундеслига", "🇪🇺 ЕЧЛ", "⬅️ Орқага")
         bot.send_message(message.chat.id, "Лигани танланг:", reply_markup=markup)
 
     elif message.text in ["🏴󠁧󠁢󠁥󠁮󠁧󠁿 АПЛ", "🇪🇸 Ла Лига", "🇮🇹 Серия А", "🇩🇪 Бундеслига", "🇪🇺 ЕЧЛ"]:
-        codes = {"🏴󠁧󠁢󠁥󠁮󠁧󠁿 АПЛ": "PL", "🇪🇸 Ла Лига": "PD", "🇮🇹 Серия А": "SA", "🇩🇪 Бундеслига": "BL1", "🇪🇺 ЕЧЛ": "CL"}
-        bot.send_message(message.chat.id, get_europe_table(codes[message.text]), parse_mode="Markdown")
+        # Foydalanuvchiga kutishni aytamiz (yaxshi tajriba uchun)
+        wait_msg = bot.send_message(message.chat.id, "⌛️ Маълумот юкланмоқда...")
+        
+        codes = {
+            "🏴󠁧󠁢󠁥󠁮󠁧󠁿 АПЛ": "PL", 
+            "🇪🇸 Ла Лига": "PD", 
+            "🇮🇹 Серия А": "SA", 
+            "🇩🇪 Бундеслига": "BL1", 
+            "🇪🇺 ЕЧЛ": "CL"
+        }
+        
+        league_code = codes.get(message.text)
+        table_text = get_europe_table(league_code)
+        
+        # Natijani yuboramiz va "Kuting" xabarini o'chiramiz
+        bot.send_message(message.chat.id, table_text, parse_mode="Markdown")
+        bot.delete_message(message.chat.id, wait_msg.message_id)
 
     elif message.text == "⬅️ Орқага":
         welcome(message)
+
 
 # --- 5. ISHGA TUSHIRISH ---
 if __name__ == "__main__":
