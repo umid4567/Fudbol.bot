@@ -162,12 +162,29 @@ def bot_message(message):
         m.add(types.InlineKeyboardButton(text="🌐 Жонли натижалар", web_app=types.WebAppInfo(url="https://www.livescore.com/en/")))
         bot.send_message(message.chat.id, "🔴 LIVE натижалар:", reply_markup=m)
 
-    elif message.text == "📺 Ўйинни кўриш":
+        elif message.text == "📺 Ўйинни кўриш":
         markup = types.InlineKeyboardMarkup(row_width=1)
-        search_query = "m.football.tv футбол live сегодня"
-        google_url = f"https://www.google.com/search?q={urllib.parse.quote(search_query)}"
-        markup.add(types.InlineKeyboardButton(text="⚽️ Эфирни топиш", url=google_url))
-        bot.send_message(message.chat.id, "📺 **Жонли эфир қидируви:**", reply_markup=markup, parse_mode="Markdown")
+        # To'g'ridan-to'g'ri havola
+        stream_url = "https://m.futboll.tv/tv.php"
+        
+        # Web App orqali bot ichida ochish (tavsiya etiladi)
+        markup.add(types.InlineKeyboardButton(
+            text="⚽️ Эфирга кириш (Bot ichida)", 
+            web_app=types.WebAppInfo(url=stream_url)
+        ))
+        
+        # Oddiy havola (agar brauzerda ochishni xohlasa)
+        markup.add(types.InlineKeyboardButton(
+            text="🌐 Brauzerda ochish", 
+            url=stream_url
+        ))
+        
+        bot.send_message(
+            message.chat.id, 
+            "📺 **Жонли эфир маркази:**\n\nҚуйидаги тугма орқали ўйинларни жонли кузатишингиз мумкин.", 
+            reply_markup=markup, 
+            parse_mode="Markdown"
+        )
 
     elif message.text == "📅 Ўйинлар куни":
         wait = bot.send_message(message.chat.id, "⌛️...")
